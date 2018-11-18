@@ -6,11 +6,12 @@ from typing import Callable, List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 from tensorboardX import SummaryWriter
 from unityagents import UnityEnvironment
 
 from utils.logging import init_tensorboard_logger, get_run_id
-from utils.math import exp_decay
+from utils.math import exp_decay, linear_decay
 from utils.metrics import Metrics
 
 State = torch.tensor
@@ -24,8 +25,8 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 class ReplayMemory(object):
     def __init__(self, capacity: int):
         self.capacity = capacity
+        self.index = 0
         self._memory = []
-        self._index = 0
 
     def __len__(self):
         return len(self._memory)
@@ -35,8 +36,8 @@ class ReplayMemory(object):
         if len(self._memory) < self.capacity:
             self._memory.append(t)
         else:
-            self._memory[self._index] = t
-        self._index = (self._index + 1) % self.capacity
+            self._memory[self.index] = t
+        self.index = (self.index + 1) % self.capacity
 
     def sample(self, batch_size: int) -> List[Transition]:
         return random.sample(self._memory, batch_size)
@@ -68,7 +69,11 @@ class DQN(object):
         self._target_network = network_builder(state_space, action_space).type(self._dtype).to(self._device)
         self._update_weights(self._network, self._target_network)
 
+        self._optimizer = optim.Adam(self._network.parameters())
+
         self._env = env
+        self._state_space = state_space
+        self._action_space = action_space
         self._brain_name = self._env.brain_names[0]
 
         self._memory = ReplayMemory(memory_capacity)
@@ -86,9 +91,9 @@ class DQN(object):
         self._tb.add_scalar('dqn/epsilon', float(eps_threshold), self._metrics.step)
         if random.random() > eps_threshold or not explore:
             with torch.no_grad():
-                return self._network(state).max(dim=0)[1].view(1, 1)
+                return self._network(state).max(dim=0)[1].view(1)
         else:
-            return torch.tensor([[random.randrange(4)]], device=self._device, dtype=torch.long)
+            return torch.tensor([random.randrange(4)], device=self._device, dtype=torch.long)
 
     def train(self):
         while True:
@@ -97,7 +102,7 @@ class DQN(object):
 
             while True:
                 action = self.control(state)
-                env_info = self._env.step(action.numpy())[self._brain_name]
+                env_info = self._env.step(action.cpu().numpy())[self._brain_name]
                 next_state = torch.tensor(env_info.vector_observations[0], device=self._device, dtype=self._dtype)
                 reward = env_info.rewards[0]
                 done = env_info.local_done[0]
@@ -125,9 +130,44 @@ class DQN(object):
         if len(self._memory) < self._batch_size:
             return
 
+        transitions = self._memory.sample(self._batch_size)
+        batch = Transition(*zip(*transitions))
+
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not TerminalState, batch.next_state)),
+                                      device=self._device, dtype=torch.uint8)
+        non_final_next_states = torch.stack([s for s in batch.next_state if s is not TerminalState])
+        assert 0 <= non_final_next_states.size(0) <= self._batch_size and non_final_next_states.size(1) == self._state_space
+
+        state_batch = torch.stack(batch.state)
+        assert state_batch.size() == torch.Size([self._batch_size, self._state_space])
+        action_batch = torch.stack(batch.action)
+        assert action_batch.size() == torch.Size([self._batch_size, 1])
+        reward_batch = torch.stack(batch.reward)
+        assert reward_batch.size() == torch.Size([self._batch_size, 1])
+
+        state_action_values = self._network(state_batch).gather(1, action_batch)
+        assert state_action_values.size() == torch.Size([self._batch_size, 1])
+
+        next_state_values = torch.zeros(self._batch_size, device=self._device, dtype=self._dtype)
+        next_state_values[non_final_mask] = self._target_network(non_final_next_states).max(dim=1)[0].detach()
+        expected_state_action_values = (next_state_values.unsqueeze(1) * self._gamma) + reward_batch
+        assert expected_state_action_values.size() == torch.Size([self._batch_size, 1])
+
+        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values)
+        self._tb.add_scalar('dqn/loss', float(loss), self._metrics.step)
+
+        self._optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self._network.parameters(), 10.)
+        self._optimizer.step()
+
+        if (self._metrics.step % self._target_update) == 0:
+            self._update_weights(self._network, self._target_network)
+
     def _store_transition(self, state: State, action: Action, next_state: State, reward: Reward):
-        self._memory.push(state, action, next_state, reward)
+        self._memory.push(state, action, next_state, torch.tensor([reward], device=self._device, dtype=self._dtype))
         self._tb.add_scalar('dqn/replay_memory_size', len(self._memory), self._metrics.step)
+        self._tb.add_scalar('dqn/replay_memory_index', self._memory.index, self._metrics.step)
 
     @classmethod
     def _update_weights(cls, src: nn.Module, dst: nn.Module):
@@ -139,9 +179,9 @@ if __name__ == '__main__':
     tb = init_tensorboard_logger(os.path.join(os.pardir, 'tensorboard'), get_run_id())
     algo = DQN(env=env, state_space=37, action_space=4,
                network_builder=DeepQNetwork,
-               gamma=0.99, batch_size=64, target_update=10, memory_capacity=10000,
-               eps_fn=exp_decay(0.9, 0.05, 1000),
-               device='cpu', tb_logger=tb)
+               gamma=0.99, batch_size=64, target_update=10, memory_capacity=50000,
+               eps_fn=linear_decay(0.9, 0.05, 20000),
+               device='cuda', tb_logger=tb)
 
     algo.train()
     env.close()
