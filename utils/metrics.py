@@ -1,7 +1,7 @@
 from statistics import mean
 
 
-class Metric(object):
+class Metrics(object):
     def __init__(self):
         self.step = 0
         self.step_in_episode = 0

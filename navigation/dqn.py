@@ -1,4 +1,3 @@
-import math
 import os
 import random
 from collections import namedtuple
@@ -7,8 +6,10 @@ from typing import Callable, List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from unityagents import UnityEnvironment
+
+from utils.math import exp_decay
+from utils.metrics import Metrics
 
 State = torch.tensor
 TerminalState = None
@@ -55,7 +56,8 @@ class DeepQNetwork(nn.Module):
 
 
 class DQN(object):
-    def __init__(self, network_builder: Callable[[int, int], nn.Module], state_space: int, action_space: int,
+    def __init__(self, env: UnityEnvironment, state_space: int, action_space: int,
+                 network_builder: Callable[[int, int], nn.Module],
                  gamma: float, batch_size: int, target_update: int, memory_capacity: int,
                  eps_fn: Callable[[int], float],
                  device: str = 'cpu'):
@@ -65,7 +67,11 @@ class DQN(object):
         self._target_network = network_builder(state_space, action_space).type(self._dtype).to(self._device)
         self._update_weights(self._network, self._target_network)
 
+        self._env = env
+        self._brain_name = self._env.brain_names[0]
+
         self._memory = ReplayMemory(memory_capacity)
+        self._metrics = Metrics()
 
         self._gamma = gamma
         self._batch_size = batch_size
@@ -73,18 +79,45 @@ class DQN(object):
 
         self._eps = eps_fn
 
-    def control(self, state: State) -> Action:
-        sample = random.random()
-        eps_threshold = self._eps(0)
+    def control(self, state: State, explore: bool = True) -> Action:
+        eps_threshold = self._eps(self._metrics.step)
+        if random.random() > eps_threshold or not explore:
+            with torch.no_grad():
+                return self._network(state).max(dim=0)[1].view(1, 1)
+        else:
+            return torch.tensor([[random.randrange(4)]], device=self._device, dtype=torch.long)
 
     def train(self):
-        pass
+        while True:
+            env_info = self._env.reset(train_mode=True)[self._brain_name]
+            state = torch.tensor(env_info.vector_observations[0], device=self._device, dtype=self._dtype)
 
-    def learn(self):
+            while True:
+                action = self.control(state)
+                print(action)
+                env_info = self._env.step(action.numpy())[self._brain_name]
+                next_state = torch.tensor(env_info.vector_observations[0], device=self._device, dtype=self._dtype)
+                reward = env_info.rewards[0]
+                done = env_info.local_done[0]
+
+                if done:
+                    next_state = TerminalState
+
+                self._store_transition(state, action, next_state, reward)
+                self._learn()
+                self._metrics.next_step(reward)
+
+                state = next_state
+
+                if done:
+                    self._metrics.next_episode()
+                    break
+
+    def _learn(self):
         if len(self._memory) < self._batch_size:
             return
 
-    def store_transition(self, state: State, action: Action, next_state: State, reward: Reward):
+    def _store_transition(self, state: State, action: Action, next_state: State, reward: Reward):
         self._memory.push(state, action, next_state, reward)
 
     @classmethod
@@ -93,33 +126,12 @@ class DQN(object):
 
 
 if __name__ == '__main__':
-    algo = DQN(network_builder=DeepQNetwork,
-               state_space=37, action_space=4,
+    env = UnityEnvironment(file_name=os.path.join(os.curdir, 'bin', 'Banana.x86_64'))
+    algo = DQN(env=env, state_space=37, action_space=4,
+               network_builder=DeepQNetwork,
                gamma=0.99, batch_size=64, target_update=10, memory_capacity=10000,
+               eps_fn=exp_decay(0.9, 0.05, 1000),
                device='cpu')
 
-    env = UnityEnvironment(file_name=os.path.join(os.curdir, 'bin', 'Banana.app'))
-    brain_name = env.brain_names[0]
-
-    env_info = env.reset(train_mode=True)[brain_name]
-    state = torch.tensor(env_info.vector_observations[0])
-
-    while True:
-        action = algo.control(state)
-        env_info = env.step(action)[brain_name]
-        next_state = torch.tensor(env_info.vector_observations[0])
-        reward = env_info.rewards[0]
-        done = env_info.local_done[0]
-
-        if done:
-            next_state = TerminalState
-
-        algo.store_transition(state, action, next_state, reward)
-        algo.learn()
-
-        state = next_state
-
-        if done:
-            break
-
+    algo.train()
     env.close()
