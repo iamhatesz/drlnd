@@ -1,3 +1,4 @@
+import math
 import os
 import random
 from collections import namedtuple
@@ -56,6 +57,7 @@ class DeepQNetwork(nn.Module):
 class DQN(object):
     def __init__(self, network_builder: Callable[[int, int], nn.Module], state_space: int, action_space: int,
                  gamma: float, batch_size: int, target_update: int, memory_capacity: int,
+                 eps_fn: Callable[[int], float],
                  device: str = 'cpu'):
         self._device = torch.device(device)
         self._dtype = torch.float
@@ -69,8 +71,11 @@ class DQN(object):
         self._batch_size = batch_size
         self._target_update = target_update
 
+        self._eps = eps_fn
+
     def control(self, state: State) -> Action:
-        pass
+        sample = random.random()
+        eps_threshold = self._eps(0)
 
     def train(self):
         pass

@@ -13,6 +13,10 @@
 *.pif
 *.vb
 *.wsf
+*.x86
+*.x86_64
+
+*_Data
 
 ### JupyterNotebook ###
 .ipynb_checkpoints
