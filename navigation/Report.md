@@ -36,3 +36,4 @@ Disclaimer: the code skeleton used in this projects is based on solution provide
 * Implement Dueling Architecture
 * Add prioritizing in replay memory
 * Parallelize training with [Distributed Prioritized Experience Replay](https://arxiv.org/abs/1803.00933)
+* Implement n-step bootstrapping and/or other techniques described in [Rainbow](https://arxiv.org/abs/1710.02298)
