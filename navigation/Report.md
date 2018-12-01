@@ -28,3 +28,8 @@ to 0.001. Network was optimized only every 4th step. Also, first optimization to
 epsilon function used to generate epsilon values is shown below:
 
 ![epsilon function](https://imgur.com/EGbhbsd.png)
+
+### Ideas for Future Work
+* Implement Dueling Architecture
+* Add prioritizing in replay memory
+* Parallelize training with [Distributed Prioritized Experience Replay](https://arxiv.org/abs/1803.00933)
