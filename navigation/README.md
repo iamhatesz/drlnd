@@ -38,3 +38,6 @@ algo.eval(r'./episode0627_score15.58.weights',
 
 You can specify number of episodes to run with `num_episodes`, 
 and whether to delay execution of each step with `step_delay`.
+
+### Report
+You can see detailed report [here](https://github.com/iamhatesz/drlnd/blob/master/navigation/Report.md).
