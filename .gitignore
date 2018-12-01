@@ -18,7 +18,8 @@
 
 *_Data
 
-tensorboard/*
+tensorboard/*/
+navigation/output/*/
 
 ### JupyterNotebook ###
 .ipynb_checkpoints
