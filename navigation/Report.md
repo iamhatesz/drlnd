@@ -29,6 +29,9 @@ epsilon function used to generate epsilon values is shown below:
 
 ![epsilon function](https://imgur.com/EGbhbsd.png)
 
+Disclaimer: the code skeleton used in this projects is based on solution provided in 
+[PyTorch's official documentation](https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html).
+
 ### Ideas for Future Work
 * Implement Dueling Architecture
 * Add prioritizing in replay memory
