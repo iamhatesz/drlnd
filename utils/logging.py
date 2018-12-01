@@ -6,7 +6,9 @@ from tensorboardX import SummaryWriter
 
 
 def get_run_id() -> str:
-    return datetime.now().strftime('%Y%m%dT%H%M%S')
+    if 'RUN_ID' not in os.environ:
+        os.environ['RUN_ID'] = datetime.now().strftime('%Y%m%dT%H%M%S')
+    return os.environ['RUN_ID']
 
 
 def init_module_logger(name: str) -> logging.Logger:
