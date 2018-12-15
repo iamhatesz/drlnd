@@ -45,7 +45,7 @@ class ReplayMemory:
         return random.sample(self._memory, batch_size)
 
 
-class OrnsteinUhlenbackProcess:
+class OrnsteinUhlenbeckProcess:
     def __init__(self, dims: int, mu_start: float = 1.0, mu_final: float = 0.0,
                  theta: float = 0.02, sigma: float = 1.0,
                  dt: float = 0.01):
@@ -155,7 +155,9 @@ class DDPG:
         self._num_policy_updates = num_policy_updates
         self._min_samples_in_memory = min_samples_in_memory
 
-        self._noise = OrnsteinUhlenbackProcess(dims=self._action_space, mu_start=1., mu_final=0., theta=0.015, sigma=0.2, dt=0.005)
+        self._noise = OrnsteinUhlenbeckProcess(dims=self._action_space, mu_start=1., mu_final=0.,
+                                               theta=0.015, sigma=0.2,
+                                               dt=0.005)
 
         self._tb = tb_logger
 
