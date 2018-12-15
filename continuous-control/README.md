@@ -38,3 +38,10 @@ algo.eval(r'./episode1258_score39.14.weights',
 
 You can specify number of episodes to run with `num_episodes`, 
 and whether to delay execution of each step with `step_delay`.
+
+### Demo
+
+![gif](https://thumbs.gfycat.com/ValuableGrandCapybara-size_restricted.gif)
+
+### Report
+You can read detailed report [here](https://github.com/iamhatesz/drlnd/blob/master/continuous-control/Report.md).
