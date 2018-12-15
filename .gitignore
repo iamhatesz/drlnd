@@ -20,6 +20,7 @@
 
 tensorboard/*/
 navigation/output/*/
+continuous-control/output/*/
 
 ### JupyterNotebook ###
 .ipynb_checkpoints
