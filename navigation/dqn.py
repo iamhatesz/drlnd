@@ -23,7 +23,7 @@ Reward = float
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 
-class ReplayMemory(object):
+class ReplayMemory:
     def __init__(self, capacity: int):
         self.capacity = capacity
         self.index = 0
@@ -58,7 +58,7 @@ class DeepQNetwork(nn.Module):
         return x
 
 
-class DQN(object):
+class DQN:
     def __init__(self, env: UnityEnvironment, state_space: int, action_space: int,
                  network_builder: Callable[[int, int], nn.Module],
                  use_double_dqn: bool,
