@@ -21,6 +21,7 @@
 tensorboard/*/
 navigation/output/*/
 continuous-control/output/*/
+collab-compet/output/*/
 
 ### JupyterNotebook ###
 .ipynb_checkpoints
