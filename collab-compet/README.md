@@ -43,3 +43,7 @@ and whether to delay execution of each step with `step_delay`.
 ### Demo
 
 ![gif](https://thumbs.gfycat.com/BelovedImpressionableFairybluebird-size_restricted.gif)
+
+### Report
+You can read detailed report [here](https://github.com/iamhatesz/drlnd/blob/master/collab-compet/Report.md).
+
