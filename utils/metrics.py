@@ -1,7 +1,8 @@
 from statistics import mean
+from typing import List
 
 
-class Metrics(object):
+class Metrics:
     def __init__(self):
         self.step = 0
         self.step_in_episode = 0
@@ -40,3 +41,11 @@ class Metrics(object):
     def new_baseline(self, value: float):
         self.baseline = value
         return self
+
+
+class MultiAgentMetrics(Metrics):
+    def next_step(self, reward: List[float]):
+        return super().next_step(reward)
+
+    def episode_reward(self) -> float:
+        return max(sum([r[0] for r in self.episode_rewards]), sum([r[1] for r in self.episode_rewards]))
